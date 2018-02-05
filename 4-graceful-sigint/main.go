@@ -13,10 +13,64 @@
 
 package main
 
-func main() {
-	// Create a process
-	proc := MockProcess{}
+import (
+    "fmt"
+    "os"
+    "os/signal"
+    "syscall"
+)
 
-	// Run the process (blocking)
-	proc.Run()
+func main() {
+
+    signal_chan := make(chan os.Signal, 1)
+    signal.Notify(signal_chan,
+        syscall.SIGHUP,
+        syscall.SIGINT,
+        syscall.SIGTERM,
+        syscall.SIGQUIT)
+
+    exit_chan := make(chan int)
+    go func() {
+
+	    // Create a process
+	    proc := MockProcess{}
+
+	    // Run the process (blocking)
+	    go proc.Run()
+
+        count := 0
+        for {
+            s := <-signal_chan
+            switch s {
+/*
+            // kill -SIGTERM XXXX
+            case syscall.SIGTERM:
+                fmt.Println("sigterm")
+
+            // kill -SIGQUIT XXXX
+            case syscall.SIGQUIT:
+                fmt.Println("sigquit")
+
+            // kill -SIGHUP XXXX
+            case syscall.SIGHUP:
+                fmt.Println("hungup")
+*/
+            // kill -SIGINT XXXX or Ctrl+c
+            case syscall.SIGINT:
+                fmt.Println("CTRL+C")
+                count++
+                if count == 2 {
+                    exit_chan <- 0
+                }
+                go proc.Stop()
+
+            default:
+                fmt.Println("Unknown signal.")
+                exit_chan <- 1
+            }
+        }
+    }()
+
+    code := <-exit_chan
+    os.Exit(code)
 }
