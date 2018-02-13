@@ -27,20 +27,15 @@ func producer(stream Stream, tweets chan<- Tweet, wg *sync.WaitGroup) {
 }
 
 func consumer(tweets <-chan Tweet, wg *sync.WaitGroup) {
-  var m = &sync.Mutex{} 
   for t := range tweets {
     if (t.Username == "" && t.Text == "") {  
       wg.Done()
       return 
     } 
 		if t.IsTalkingAboutGo() {
-		  m.Lock()	
       fmt.Println(t.Username, "\ttweets about golang")
-      m.Unlock()
 		} else { 
-		  m.Lock()	
 			fmt.Println(t.Username, "\tdoes not tweet about golang")
-      m.Unlock()
     }	
   }
 }
