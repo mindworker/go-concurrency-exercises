@@ -13,10 +13,38 @@
 
 package main
 
+import (
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+)
+
 func main() {
-	// Create a process
 	proc := MockProcess{}
 
-	// Run the process (blocking)
+	// cleanup outer
+	exitFunc := func() {
+		fmt.Println("exit outer gracefully")
+		os.Exit(0)
+	}
+
+	go func(ef func()) {
+		// cleanup inner
+		defer func() {
+			fmt.Println("\nexit inner")
+			ef()
+		}()
+
+		c := make(chan os.Signal)
+		signal.Notify(c, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+		<-c
+		go proc.Stop()
+
+		time.Sleep(time.Second)
+	}(exitFunc)
+
 	proc.Run()
 }
