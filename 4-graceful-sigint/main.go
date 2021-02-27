@@ -24,27 +24,21 @@ import (
 func main() {
 	proc := MockProcess{}
 
-	// cleanup outer
-	exitFunc := func() {
-		fmt.Println("exit outer gracefully")
-		os.Exit(0)
-	}
+	c := make(chan os.Signal, 1)
+	done := make(chan bool, 1)
 
-	go func(ef func()) {
-		// cleanup inner
-		defer func() {
-			fmt.Println("\nexit inner")
-			ef()
-		}()
+	signal.Notify(c, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-		c := make(chan os.Signal)
-		signal.Notify(c, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	go proc.Run()
 
+	go func() {
 		<-c
-		go proc.Stop()
+		fmt.Println("interrupted")
+		done <- true
+		proc.Stop()
+	}()
 
-		time.Sleep(time.Second)
-	}(exitFunc)
-
-	proc.Run()
+	<-done
+	time.Sleep(1 * time.Second)
+	fmt.Println("exiting gracefully")
 }
